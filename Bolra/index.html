@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>I'm sorry</title>
+  <style>
+    :root{--bg:#0f172a;--card:#0b1220;--accent:#f97316;--muted:#94a3b8}
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial}
+    body{display:grid;place-items:center;background:linear-gradient(135deg,#0b1220 0%, #071026 100%);color:#e6eef8}
+
+    .card{width:min(760px,92vw);padding:36px;border-radius:18px;background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));box-shadow:0 10px 30px rgba(2,6,23,0.7);text-align:center}
+    h1{margin:0 0 8px;font-size:clamp(18px,3.2vw,28px);letter-spacing:-0.02em}
+    p.lead{margin:0 0 24px;color:var(--muted)}
+
+    .stage{position:relative;height:260px;border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,0.01),rgba(255,255,255,0.00));display:flex;align-items:center;justify-content:center}
+
+    .btn{appearance:none;border:0;padding:14px 22px;font-size:16px;border-radius:10px;cursor:pointer;user-select:none}
+    .btn-yes{background:linear-gradient(90deg,#22c55e,#16a34a);color:white;box-shadow:0 8px 18px rgba(20,100,60,0.18)}
+    .btn-no{background:transparent;border:2px solid rgba(255,255,255,0.08);color:#e6eef8;padding:12px 18px;position:absolute;transition:transform 180ms ease,left 180ms ease,top 180ms ease}
+
+    .controls{display:flex;gap:12px;justify-content:center;margin-top:20px}
+
+    .message{margin-top:18px;color:var(--muted)}
+
+    /* small-screen tweaks */
+    @media (max-width:420px){.card{padding:20px}.stage{height:220px}}
+  </style>
+</head>
+<body>
+  <main class="card" role="main">
+    <h1>Намаайг уучлаарай. Бууж кофе уух уу?🥲</h1>
+    <p class="lead">(Pick one answer)</p>
+
+    <div class="stage" id="stage" aria-live="polite">
+      <!-- Yes button is static and friendly -->
+      <button id="yes" class="btn btn-yes" aria-label="Yes, let's go">За яахав. Энэ удаа уучлахаас</button>
+
+      <!-- No button will dodge the cursor -->
+      <button id="no" class="btn btn-no" aria-label="No" title="No">Nou.</button>
+    </div>
+
+    <div class="controls">
+      <small class="message" id="msg">Дахиж бууз жигнүүлэхгүй ээ ккк.</small>
+    </div>
+  </main>
+
+  <script>
+    (function(){
+      const stage = document.getElementById('stage');
+      const no = document.getElementById('no');
+      const yes = document.getElementById('yes');
+      const msg = document.getElementById('msg');
+
+      // place the two buttons initially
+      function placeInitial(){
+        const rect = stage.getBoundingClientRect();
+        // center yes button
+        yes.style.position = 'absolute';
+        yes.style.left = (rect.width/2 - yes.offsetWidth/2 - 90) + 'px';
+        yes.style.top = (rect.height/2 - yes.offsetHeight/2) + 'px';
+        // place no to the right initially
+        no.style.left = (rect.width/2 - no.offsetWidth/2 + 90) + 'px';
+        no.style.top = (rect.height/2 - no.offsetHeight/2) + 'px';
+      }
+
+      // move element to a random location inside stage bounds
+      function moveAway(el){
+        const s = stage.getBoundingClientRect();
+        const ew = el.offsetWidth, eh = el.offsetHeight;
+        const padding = 8; // keep a small padding
+        const maxX = Math.max(0, s.width - ew - padding);
+        const maxY = Math.max(0, s.height - eh - padding);
+        // pick random spot
+        const x = Math.floor(Math.random() * maxX) + padding;
+        const y = Math.floor(Math.random() * maxY) + padding;
+        el.style.left = x + 'px';
+        el.style.top = y + 'px';
+      }
+
+      // calculate distance between pointer and element center
+      function distanceToEl(clientX, clientY, el){
+        const r = el.getBoundingClientRect();
+        const cx = r.left + r.width/2;
+        const cy = r.top + r.height/2;
+        const dx = clientX - cx; const dy = clientY - cy;
+        return Math.sqrt(dx*dx + dy*dy);
+      }
+
+      // on mousemove inside stage, if pointer gets near the no button — move it
+      stage.addEventListener('mousemove', (e) => {
+        const d = distanceToEl(e.clientX, e.clientY, no);
+        // threshold controls how jumpy the button is
+        const threshold = 110;
+        if(d < threshold){
+          moveAway(no);
+        }
+      });
+
+      // also move on hover (in case of fast entry) and on focus (keyboard)
+      no.addEventListener('mouseenter', () => moveAway(no));
+      no.addEventListener('focus', () => moveAway(no));
+      no.addEventListener('touchstart', (e)=>{ e.preventDefault(); moveAway(no); });
+
+      // if user clicks No somehow, give a playful message
+      no.addEventListener('click', (e) => {
+        e.preventDefault();
+        msg.textContent = "Hailtan ju 😊";
+      });
+
+      // Yes button handler
+      yes.addEventListener('click', () => {
+        msg.textContent = "Өглөөний цай уухгүй байсан ч болно ☺️";
+        // tiny celebration
+        yes.animate([
+          { transform: 'scale(1)' },
+          { transform: 'scale(1.06)' },
+          { transform: 'scale(1)' }
+        ], { duration: 350 });
+      });
+
+      // keep layout responsive when window resizes
+      window.addEventListener('resize', () => placeInitial());
+
+      // initial placement after assets sizes are known
+      window.addEventListener('load', () => {
+        // small timeout ensures fonts and layout measured
+        setTimeout(placeInitial, 60);
+      });
+
+      // keyboard accessibility: allow arrow keys to nudge Yes/No and Escape to center
+      document.addEventListener('keydown', (e) => {
+        const step = 8;
+        if(document.activeElement === no){
+          const left = parseInt(no.style.left || 0, 10);
+          const top = parseInt(no.style.top || 0, 10);
+          if(e.key === 'ArrowLeft') no.style.left = (left - step) + 'px';
+          if(e.key === 'ArrowRight') no.style.left = (left + step) + 'px';
+          if(e.key === 'ArrowUp') no.style.top = (top - step) + 'px';
+          if(e.key === 'ArrowDown') no.style.top = (top + step) + 'px';
+        }
+        if(e.key === 'Escape') placeInitial();
+      });
+
+    })();
+  </script>
+</body>
+</html>
